@@ -5,7 +5,7 @@ import pytz
 from datetime import datetime
 from time import sleep
 
-from ..api.femas import (
+from ..api import (
     MdApi,
     TdApi,
     USTP_FTDC_AF_Delete,
@@ -114,7 +114,7 @@ class FemasGateway(BaseGateway):
     vn.py用于连接飞马柜台的接口
     """
 
-    default_setting = {
+    default_settingd: dict = {
         "用户名": "",
         "密码": "",
         "经纪商代码": "",
@@ -131,8 +131,8 @@ class FemasGateway(BaseGateway):
         """构造函数"""
         super(FemasGateway, self).__init__(event_engine, "FEMAS")
 
-        self.td_api: "FemasTdApi" = FemasTdApi(self)
-        self.md_api: "FemasTdApi" = FemasMdApi(self)
+        self.td_api: FemasTdApi = FemasTdApi(self)
+        self.md_api: FemasTdApi = FemasMdApi(self)
 
     def connect(self, setting: dict) -> None:
         """连接交易接口"""
@@ -408,7 +408,7 @@ class FemasTdApi(TdApi):
         self.investorid = data['InvestorID']
         self.gateway.write_log("投资者代码查询成功")
 
-        sleep(1)    # Wait 1 second due to flow control
+        sleep(1)    # 由于流量控制，需要等待1秒钟
         self.reqid += 1
         self.reqQryInstrument({}, self.reqid)
 

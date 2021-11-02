@@ -1,0 +1,1 @@
+recursive-include vnpy_femas *.dll *.so *.pyd *.h *.cpp

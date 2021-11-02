@@ -1,10 +1,11 @@
 """"""
 
+from typing import Callable, Dict, List
 import pytz
 from datetime import datetime
 from time import sleep
 
-from vnpy.api.femas import (
+from ..api.femas import (
     MdApi,
     TdApi,
     USTP_FTDC_AF_Delete,
@@ -32,6 +33,7 @@ from vnpy.api.femas import (
     USTP_FTDC_VC_AV,
     USTP_FTDC_VC_CV
 )
+from vnpy.event.engine import EventEngine
 from vnpy.trader.constant import (
     Direction,
     Exchange,
@@ -109,7 +111,7 @@ symbol_size_map = {}
 
 class FemasGateway(BaseGateway):
     """
-    VN Trader Gateway for FEMAS .
+    vn.py用于连接飞马柜台的接口
     """
 
     default_setting = {
@@ -123,128 +125,122 @@ class FemasGateway(BaseGateway):
         "产品信息": "",
     }
 
-    exchanges = list(EXCHANGE_FEMAS2VT.values())
+    exchanges: List[EXCHANGE_FEMAS2VT.values] = list(EXCHANGE_FEMAS2VT.values())
 
-    def __init__(self, event_engine):
-        """Constructor"""
+    def __init__(self, event_engine: EventEngine) -> None:
+        """构造函数"""
         super(FemasGateway, self).__init__(event_engine, "FEMAS")
 
-        self.td_api = FemasTdApi(self)
-        self.md_api = FemasMdApi(self)
+        self.td_api: "FemasTdApi" = FemasTdApi(self)
+        self.md_api: "FemasTdApi" = FemasMdApi(self)
 
-    def connect(self, setting: dict):
-        """"""
-        userid = setting["用户名"]
-        password = setting["密码"]
-        brokerid = setting["经纪商代码"]
-        td_address = setting["交易服务器"]
-        md_address = setting["行情服务器"]
+    def connect(self, setting: dict) -> None:
+        """连接交易接口"""
+        userid: str = setting["用户名"]
+        password: str = setting["密码"]
+        brokerid: str = setting["经纪商代码"]
+        td_address: str = setting["交易服务器"]
+        md_address: str = setting["行情服务器"]
 
         if not td_address.startswith("tcp://"):
             td_address = "tcp://" + td_address
         if not md_address.startswith("tcp://"):
             md_address = "tcp://" + md_address
 
-        appid = setting["产品名称"]
-        auth_code = setting["授权编码"]
-        product_info = setting["产品信息"]
+        appid: str = setting["产品名称"]
+        auth_code: str = setting["授权编码"]
+        product_info: str = setting["产品信息"]
 
         self.td_api.connect(td_address, userid, password, brokerid, auth_code, appid, product_info)
         self.md_api.connect(md_address, userid, password, brokerid)
 
         self.init_query()
 
-    def subscribe(self, req: SubscribeRequest):
-        """"""
+    def subscribe(self, req: SubscribeRequest) -> None:
+        """订阅行情"""
         self.md_api.subscribe(req)
 
-    def send_order(self, req: OrderRequest):
-        """"""
+    def send_order(self, req: OrderRequest) -> None:
+        """委托下单"""
         return self.td_api.send_order(req)
 
-    def cancel_order(self, req: CancelRequest):
-        """"""
+    def cancel_order(self, req: CancelRequest) -> None:
+        """委托撤单"""
         self.td_api.cancel_order(req)
 
-    def query_account(self):
-        """"""
+    def query_account(self) -> None:
+        """查询资金"""
         self.td_api.query_account()
 
-    def query_position(self):
-        """"""
+    def query_position(self) -> None:
+        """查询持仓"""
         self.td_api.query_position()
 
-    def close(self):
-        """"""
+    def close(self) -> None:
+        """关闭接口"""
         self.td_api.close()
         self.md_api.close()
 
-    def write_error(self, msg: str, error: dict):
-        """"""
-        error_id = error["ErrorID"]
-        error_msg = error["ErrorMsg"]
-        msg = f"{msg}，代码：{error_id}，信息：{error_msg}"
+    def write_error(self, msg: str, error: dict) -> None:
+        """输出错误信息日志"""
+        error_id: str = error["ErrorID"]
+        error_msg: str = error["ErrorMsg"]
+        msg: str = f"{msg}，代码：{error_id}，信息：{error_msg}"
         self.write_log(msg)
 
-    def process_timer_event(self, event):
-        """"""
+    def process_timer_event(self, event) -> None:
+        """定时事件处理"""
         self.count += 1
         if self.count < 2:
             return
         self.count = 0
 
-        func = self.query_functions.pop(0)
+        func: Callable = self.query_functions.pop(0)
         func()
         self.query_functions.append(func)
 
-    def init_query(self):
-        """"""
-        self.count = 0
-        self.query_functions = [self.query_account, self.query_position]
+    def init_query(self) -> None:
+        """初始化查询任务"""
+        self.count: int = 0
+        self.query_functions: List[Callable] = [self.query_account, self.query_position]
         self.event_engine.register(EVENT_TIMER, self.process_timer_event)
 
 
 class FemasMdApi(MdApi):
     """"""
 
-    def __init__(self, gateway):
-        """Constructor"""
+    def __init__(self, gateway: FemasGateway) -> None:
+        """构造函数"""
         super(FemasMdApi, self).__init__()
 
-        self.gateway = gateway
-        self.gateway_name = gateway.gateway_name
+        self.gateway: FemasGateway = gateway
+        self.gateway_name: str = gateway.gateway_name
 
-        self.reqid = 0
+        self.reqid: int = 0
 
-        self.connect_status = False
-        self.login_status = False
-        self.auth_staus = False
-        self.login_failed = False
+        self.connect_status: bool = False
+        self.login_status: bool = False
+        self.auth_staus: bool = False
+        self.login_failed: bool = False
 
-        self.subscribed = set()
+        self.subscribed: List[str] = set()
 
-        self.userid = ""
-        self.password = ""
-        self.brokerid = 0
+        self.userid: str = ""
+        self.password: str = ""
+        self.brokerid: int = 0
 
-    def onFrontConnected(self):
-        """
-        Callback when front server is connected.
-        """
+    def onFrontConnected(self) -> None:
+        """服务器连接成功回报"""
         self.gateway.write_log("行情服务器连接成功")
         self.login()
 
-    def onFrontDisconnected(self, reason: int):
-        """
-        Callback when front server is disconnected.
-        """
+    def onFrontDisconnected(self, reason: int) -> None:
+        """服务器连接断开回报"""
         self.login_status = False
         self.gateway.write_log(f"行情服务器连接断开，原因{reason}")
 
-    def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool):
-        """
-        Callback when user is logged in.
-        """
+    def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """用户登录请求回报"""
         if not error["ErrorID"]:
             self.login_status = True
             self.gateway.write_log("行情服务器登录成功")
@@ -254,33 +250,29 @@ class FemasMdApi(MdApi):
         else:
             self.gateway.write_error("行情服务器登录失败", error)
 
-    def onRspError(self, error: dict, reqid: int, last: bool):
-        """
-        Callback when error occured.
-        """
+    def onRspError(self, error: dict, reqid: int, last: bool) -> None:
+        """请求报错回报"""
         self.gateway.write_error("行情接口报错", error)
 
-    def onRspSubMarketData(self, data: dict, error: dict, reqid: int, last: bool):
-        """"""
+    def onRspSubMarketData(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """订阅行情回报"""
         if not error or not error["ErrorID"]:
             return
 
         self.gateway.write_error("行情订阅失败", error)
 
-    def onRtnDepthMarketData(self, data: dict):
-        """
-        Callback of tick data update.
-        """
-        symbol = data["InstrumentID"]
-        exchange = symbol_exchange_map.get(symbol, "")
+    def onRtnDepthMarketData(self, data: dict) -> None:
+        """行情数据推送"""
+        symbol: str = data["InstrumentID"]
+        exchange: Exchange = symbol_exchange_map.get(symbol, "")
         if not exchange:
             return
 
-        timestamp = f"{data['TradingDay']} {data['UpdateTime']}.{int(data['UpdateMillisec'] / 100)}"
-        dt = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
+        timestamp: str = f"{data['TradingDay']} {data['UpdateTime']}.{int(data['UpdateMillisec'] / 100)}"
+        dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
         dt = CHINA_TZ.localize(dt)
 
-        tick = TickData(
+        tick: TickData = TickData(
             symbol=symbol,
             exchange=exchange,
             datetime=dt,
@@ -301,15 +293,13 @@ class FemasMdApi(MdApi):
         )
         self.gateway.on_tick(tick)
 
-    def connect(self, address: str, userid: str, password: str, brokerid: int):
-        """
-        Start connection to server.
-        """
+    def connect(self, address: str, userid: str, password: str, brokerid: int) -> None:
+        """连接服务器"""
         self.userid = userid
         self.password = password
         self.brokerid = brokerid
 
-        # If not connected, then start connection first.
+        # 禁止重复发起连接，会导致异常崩溃
         if not self.connect_status:
             path = get_folder_path(self.gateway_name.lower())
             self.createFtdcMdApi(str(path) + "\\Md")
@@ -319,15 +309,13 @@ class FemasMdApi(MdApi):
             self.init()
 
             self.connect_status = True
-        # If already connected, then login immediately.
+        # 如果已经连接过了，直接登录
         elif not self.login_status:
             self.login()
 
-    def login(self):
-        """
-        Login onto server.
-        """
-        req = {
+    def login(self) -> None:
+        """用户登录"""
+        req: dict = {
             "UserID": self.userid,
             "Password": self.password,
             "BrokerID": self.brokerid,
@@ -336,18 +324,14 @@ class FemasMdApi(MdApi):
         self.reqid += 1
         self.reqUserLogin(req, self.reqid)
 
-    def subscribe(self, req: SubscribeRequest):
-        """
-        Subscribe to tick data update.
-        """
+    def subscribe(self, req: SubscribeRequest) -> None:
+        """订阅行情"""
         if self.login_status:
             self.subMarketData(req.symbol)
         self.subscribed.add(req.symbol)
 
-    def close(self):
-        """
-        Close the connection.
-        """
+    def close(self) -> None:
+        """关闭连接"""
         if self.connect_status:
             self.exit()
 
@@ -355,34 +339,34 @@ class FemasMdApi(MdApi):
 class FemasTdApi(TdApi):
     """"""
 
-    def __init__(self, gateway):
-        """Constructor"""
+    def __init__(self, gateway: FemasGateway):
+        """构造函数"""
         super(FemasTdApi, self).__init__()
 
-        self.gateway = gateway
-        self.gateway_name = gateway.gateway_name
+        self.gateway: FemasGateway = gateway
+        self.gateway_name: str = gateway.gateway_name
 
-        self.reqid = 0
-        self.localid = int(10e5 + 8888)
+        self.reqid: int = 0
+        self.localid: int = int(10e5 + 8888)
 
-        self.connect_status = False
-        self.login_status = False
-        self.login_failed = False
-        self.login_status = False
+        self.connect_status: bool = False
+        self.login_status: bool = False
+        self.login_failed: bool = False
+        self.login_status: bool = False
 
-        self.userid = ""
-        self.investorid = ""
-        self.password = ""
-        self.brokerid = 0
-        self.auth_code = ""
-        self.appid = ""
-        self.product_info = ""
+        self.userid: str = ""
+        self.investorid: str = ""
+        self.password: str = ""
+        self.brokerid: int = 0
+        self.auth_code: str = ""
+        self.appid: str = ""
+        self.product_info: str = ""
 
-        self.positions = {}
-        self.tradeids = set()
+        self.positions: dict = {}
+        self.tradeids: List[str] = set()
 
-    def onFrontConnected(self):
-        """"""
+    def onFrontConnected(self) -> None:
+        """服务器连接成功回报"""
         self.gateway.write_log("交易服务器连接成功")
 
         if self.auth_code:
@@ -390,13 +374,13 @@ class FemasTdApi(TdApi):
         else:
             self.login()
 
-    def onFrontDisconnected(self, reason: int):
-        """"""
+    def onFrontDisconnected(self, reason: int) -> None:
+        """服务器连接断开回报"""
         self.login_status = False
         self.gateway.write_log(f"交易服务器连接断开，原因{reason}")
 
-    def onRspDSUserCertification(self, data: dict, error: dict, reqid: int, last: bool):
-        """"""
+    def onRspDSUserCertification(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """用户授权验证回报"""
         if not error["ErrorID"]:
             self.auth_staus = True
             self.gateway.write_log("交易服务器授权验证成功")
@@ -404,8 +388,8 @@ class FemasTdApi(TdApi):
         else:
             self.gateway.write_error("交易服务器授权验证失败", error)
 
-    def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool):
-        """"""
+    def onRspUserLogin(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """用户登录请求回报"""
         if not error["ErrorID"]:
             if data["MaxOrderLocalID"]:
                 self.localid = int(data["MaxOrderLocalID"])
@@ -419,8 +403,8 @@ class FemasTdApi(TdApi):
 
             self.gateway.write_error("交易服务器登录失败", error)
 
-    def onRspQryUserInvestor(self, data: dict, error: dict, reqid: int, last: bool):
-        """"""
+    def onRspQryUserInvestor(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """委托查询投资者代码回报"""
         self.investorid = data['InvestorID']
         self.gateway.write_log("投资者代码查询成功")
 
@@ -428,16 +412,16 @@ class FemasTdApi(TdApi):
         self.reqid += 1
         self.reqQryInstrument({}, self.reqid)
 
-    def onRspOrderInsert(self, data: dict, error: dict, reqid: int, last: bool):
-        """"""
+    def onRspOrderInsert(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """委托下单失败回报"""
         if not error["ErrorID"]:
             return
 
-        orderid = data["UserOrderLocalID"]
-        symbol = data["InstrumentID"]
-        exchange = symbol_exchange_map[symbol]
+        orderid:str = data["UserOrderLocalID"]
+        symbol: str = data["InstrumentID"]
+        exchange: Exchange = symbol_exchange_map[symbol]
 
-        order = OrderData(
+        order: OrderData = OrderData(
             symbol=symbol,
             exchange=exchange,
             orderid=orderid,
@@ -452,36 +436,34 @@ class FemasTdApi(TdApi):
 
         self.gateway.write_error("交易委托失败", error)
 
-    def onRspOrderAction(self, data: dict, error: dict, reqid: int, last: bool):
-        """"""
+    def onRspOrderAction(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """委托撤单失败回报"""
         if not error["ErrorID"]:
             return
 
         self.gateway.write_error("交易撤单失败", error)
 
-    def onRspQueryMaxOrderVolume(self, data: dict, error: dict, reqid: int, last: bool):
+    def onRspQueryMaxOrderVolume(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """"""
         pass
 
     def onRspSettlementInfoConfirm(
         self, data: dict, error: dict, reqid: int, last: bool
-    ):
-        """
-        Callback of settlment info confimation.
-        """
+    ) -> None:
+        """确认结算单回报"""
         self.gateway.write_log("结算信息确认成功")
 
         self.reqid += 1
         self.reqQryInstrument({}, self.reqid)
 
-    def onRspQryInvestorPosition(self, data: dict, error: dict, reqid: int, last: bool):
-        """"""
+    def onRspQryInvestorPosition(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """持仓查询回报"""
         if not data:
             return
 
-        # Get buffered position object
-        key = f"{data['InstrumentID'], data['Direction']}"
-        position = self.positions.get(key, None)
+        # 获取之前缓存的持仓数据缓存
+        key: str = f"{data['InstrumentID'], data['Direction']}"
+        position: PositionData = self.positions.get(key, None)
         if not position:
             position = PositionData(
                 symbol=data["InstrumentID"],
@@ -492,18 +474,18 @@ class FemasTdApi(TdApi):
             self.positions[key] = position
 
         position.yd_volume = data["YdPosition"]
-        # Calculate previous position cost
-        cost = position.price * position.volume
+        # 计算之前已有仓位的持仓总成本
+        cost: float = position.price * position.volume
 
-        # Update new position volume
+        # 累加更新持仓数量
         position.volume += data["Position"]
 
-        # Calculate average position price
+        # 计算更新后的持仓总成本和均价
         if position.volume:
             cost += data["PositionCost"]
             position.price = cost / position.volume
 
-        # Get frozen volume
+        # 更新仓位冻结数量
         position.frozen += data["FrozenPosition"]
 
         if last:
@@ -512,9 +494,9 @@ class FemasTdApi(TdApi):
 
             self.positions.clear()
 
-    def onRspQryInvestorAccount(self, data: dict, error: dict, reqid: int, last: bool):
-        """"""
-        account = AccountData(
+    def onRspQryInvestorAccount(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """资金查询回报"""
+        account: AccountData = AccountData(
             accountid=data["AccountID"],
             frozen=data["LongMargin"] + data["ShortMargin"],
             balance=data["PreBalance"],
@@ -523,13 +505,10 @@ class FemasTdApi(TdApi):
 
         self.gateway.on_account(account)
 
-    def onRspQryInstrument(self, data: dict, error: dict, reqid: int, last: bool):
-        """
-        Callback of instrument query.
-        """
-        # Femas gateway provides no ProductClass data, so need to determine
-        # product type using following logic.
-        option_type = OPTIONTYPE_FEMAS2VT.get(data["OptionsType"], None)
+    def onRspQryInstrument(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """合约查询回报"""
+        # 飞马柜台没有提供ProductClass数据，因此需要使用以下逻辑确定产品类型。  
+        option_type: OptionType = OPTIONTYPE_FEMAS2VT.get(data["OptionsType"], None)
         if option_type:
             product = Product.OPTION
         elif data["InstrumentID_2"]:
@@ -537,7 +516,7 @@ class FemasTdApi(TdApi):
         else:
             product = Product.FUTURES
 
-        contract = ContractData(
+        contract: ContractData = ContractData(
             symbol=data["InstrumentID"],
             exchange=EXCHANGE_FEMAS2VT[data["ExchangeID"]],
             name=data["InstrumentName"],
@@ -548,7 +527,7 @@ class FemasTdApi(TdApi):
         )
 
         if product == Product.OPTION:
-            # Remove C/P suffix of CZCE option product name
+            # 移除郑商所期权产品名称带有的C/P后缀
             if contract.exchange == Exchange.CZCE:
                 contract.option_portfolio = data["ProductID"][:-1]
             else:
@@ -569,15 +548,13 @@ class FemasTdApi(TdApi):
         if last:
             self.gateway.write_log("合约信息查询成功")
 
-    def onRtnOrder(self, data: dict):
-        """
-        Callback of order status update.
-        """
-        timestamp = f"{data['InsertDate']} {data['InsertTime']}"
-        dt = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
+    def onRtnOrder(self, data: dict) -> None:
+        """委托更新推送"""
+        timestamp: str = f"{data['InsertDate']} {data['InsertTime']}"
+        dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
         dt = CHINA_TZ.localize(dt)
 
-        order = OrderData(
+        order: OrderData = OrderData(
             symbol=data["InstrumentID"],
             exchange=EXCHANGE_FEMAS2VT[data["ExchangeID"]],
             orderid=data["UserOrderLocalID"],
@@ -594,21 +571,19 @@ class FemasTdApi(TdApi):
         self.localid = max(self.localid, int(order.orderid))
         self.gateway.on_order(order)
 
-    def onRtnTrade(self, data: dict):
-        """
-        Callback of trade status update.
-        """
-        # Filter duplicate trade data push
-        tradeid = data["TradeID"]
+    def onRtnTrade(self, data: dict) -> None:
+        """成交数据推送"""
+        # 过滤重复交易数据推送
+        tradeid: str = data["TradeID"]
         if tradeid in self.tradeids:
             return
         self.tradeids.add(tradeid)
 
-        timestamp = f"{data['TradeDate']} {data['TradeTime']}"
-        dt = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
+        timestamp: str = f"{data['TradeDate']} {data['TradeTime']}"
+        dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
         dt = CHINA_TZ.localize(dt)
 
-        trade = TradeData(
+        trade: OrderData = TradeData(
             symbol=data["InstrumentID"],
             exchange=EXCHANGE_FEMAS2VT[data["ExchangeID"]],
             orderid=data["UserOrderLocalID"],
@@ -632,10 +607,8 @@ class FemasTdApi(TdApi):
         auth_code: str,
         appid: str,
         product_info: str
-    ):
-        """
-        Start connection to server.
-        """
+    ) -> None:
+        """连接服务器"""
         self.userid = userid
         self.password = password
         self.brokerid = brokerid
@@ -659,11 +632,9 @@ class FemasTdApi(TdApi):
         else:
             self.authenticate()
 
-    def authenticate(self):
-        """
-        Authenticate with auth_code and appid.
-        """
-        req = {
+    def authenticate(self) -> None:
+        """发起授权验证"""
+        req: dict = {
             "AppID": self.appid,
             "AuthCode": self.auth_code,
             "EncryptType": "1",
@@ -675,14 +646,12 @@ class FemasTdApi(TdApi):
         self.reqid += 1
         self.reqDSUserCertification(req, self.reqid)
 
-    def login(self):
-        """
-        Login onto server.
-        """
+    def login(self) -> None:
+        """用户登录"""
         if self.login_failed:
             return
 
-        req = {
+        req: dict = {
             "UserID": self.userid,
             "Password": self.password,
             "BrokerID": self.brokerid,
@@ -695,8 +664,8 @@ class FemasTdApi(TdApi):
         self.reqid += 1
         self.reqUserLogin(req, self.reqid)
 
-    def query_investor(self):
-        """"""
+    def query_investor(self) -> None:
+        """委托查询可用投资者"""
         self.reqid += 1
 
         req = {
@@ -706,18 +675,16 @@ class FemasTdApi(TdApi):
 
         self.reqQryUserInvestor(req, self.reqid)
 
-    def send_order(self, req: OrderRequest):
-        """
-        Send new order.
-        """
+    def send_order(self, req: OrderRequest) -> str:
+        """委托下单"""
         if req.offset not in OFFSET_VT2FEMAS:
             self.gateway.write_log("请选择开平方向")
             return ""
 
         self.localid += 1
-        orderid = str(self.localid).rjust(12, "0")
+        orderid: str = str(self.localid).rjust(12, "0")
 
-        femas_req = {
+        femas_req: dict = {
             "InstrumentID": req.symbol,
             "ExchangeID": str(req.exchange).split(".")[1],
             "BrokerID": self.brokerid,
@@ -749,19 +716,17 @@ class FemasTdApi(TdApi):
         self.reqid += 1
         self.reqOrderInsert(femas_req, self.reqid)
 
-        order = req.create_order_data(orderid, self.gateway_name)
+        order: OrderData = req.create_order_data(orderid, self.gateway_name)
         self.gateway.on_order(order)
 
         return order.vt_orderid
 
-    def cancel_order(self, req: CancelRequest):
-        """
-        Cancel existing order.
-        """
+    def cancel_order(self, req: CancelRequest) -> None:
+        """委托撤单"""
         self.localid += 1
-        orderid = str(self.localid).rjust(12, "0")
+        orderid: str = str(self.localid).rjust(12, "0")
 
-        femas_req = {
+        femas_req: dict = {
             "InstrumentID": req.symbol,
             "ExchangeID": str(req.exchange).split(".")[1],
             "UserOrderLocalID": req.orderid,
@@ -775,14 +740,12 @@ class FemasTdApi(TdApi):
         self.reqid += 1
         self.reqOrderAction(femas_req, self.reqid)
 
-    def query_account(self):
-        """
-        Query account balance data.
-        """
+    def query_account(self) -> None:
+        """查询资金"""
         if not self.investorid:
             return
 
-        req = {
+        req: dict = {
             "BrokerID": self.brokerid,
             "InvestorID": self.investorid,
             "UserID": self.userid,
@@ -791,14 +754,12 @@ class FemasTdApi(TdApi):
 
         self.reqQryInvestorAccount(req, self.reqid)
 
-    def query_position(self):
-        """
-        Query position holding data.
-        """
+    def query_position(self) -> None:
+        """查询持仓"""
         if not symbol_exchange_map:
             return
 
-        req = {
+        req: dict = {
             "BrokerID": self.brokerid,
             "InvestorID": self.investorid,
             "UserID": self.userid,
@@ -807,7 +768,7 @@ class FemasTdApi(TdApi):
         self.reqid += 1
         self.reqQryInvestorPosition(req, self.reqid)
 
-    def close(self):
-        """"""
+    def close(self) -> None:
+        """关闭连接"""
         if self.connect_status:
             self.exit()

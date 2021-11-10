@@ -302,7 +302,7 @@ class FemasMdApi(MdApi):
         # 禁止重复发起连接，会导致异常崩溃
         if not self.connect_status:
             path = get_folder_path(self.gateway_name.lower())
-            self.createFtdcMdApi(str(path) + "\\Md")
+            self.createFtdcMdApi((str(path) + "\\Md").encode("GBK"))
 
             self.subscribeMarketDataTopic(100, 2)
             self.registerFront(address)

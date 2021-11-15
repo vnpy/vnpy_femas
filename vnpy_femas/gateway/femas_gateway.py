@@ -114,7 +114,7 @@ class FemasGateway(BaseGateway):
     vn.py用于连接飞马柜台的接口
     """
 
-    default_settingd: dict = {
+    default_setting: dict = {
         "用户名": "",
         "密码": "",
         "经纪商代码": "",
@@ -122,7 +122,6 @@ class FemasGateway(BaseGateway):
         "行情服务器": "",
         "产品名称": "",
         "授权编码": "",
-        "产品信息": "",
     }
 
     exchanges: List[EXCHANGE_FEMAS2VT.values] = list(EXCHANGE_FEMAS2VT.values())
@@ -149,9 +148,8 @@ class FemasGateway(BaseGateway):
 
         appid: str = setting["产品名称"]
         auth_code: str = setting["授权编码"]
-        product_info: str = setting["产品信息"]
 
-        self.td_api.connect(td_address, userid, password, brokerid, auth_code, appid, product_info)
+        self.td_api.connect(td_address, userid, password, brokerid, auth_code, appid)
         self.md_api.connect(md_address, userid, password, brokerid)
 
         self.init_query()
@@ -360,7 +358,6 @@ class FemasTdApi(TdApi):
         self.brokerid: int = 0
         self.auth_code: str = ""
         self.appid: str = ""
-        self.product_info: str = ""
 
         self.positions: dict = {}
         self.tradeids: List[str] = set()
@@ -605,8 +602,7 @@ class FemasTdApi(TdApi):
         password: str,
         brokerid: int,
         auth_code: str,
-        appid: str,
-        product_info: str
+        appid: str
     ) -> None:
         """连接服务器"""
         self.userid = userid
@@ -615,7 +611,6 @@ class FemasTdApi(TdApi):
         self.address = address
         self.auth_code = auth_code
         self.appid = appid
-        self.product_info = product_info
 
         if not self.connect_status:
             path = get_folder_path(self.gateway_name.lower())
@@ -640,9 +635,6 @@ class FemasTdApi(TdApi):
             "EncryptType": "1",
         }
 
-        if self.product_info:
-            req["UserProductInfo"] = self.product_info
-
         self.reqid += 1
         self.reqDSUserCertification(req, self.reqid)
 
@@ -657,9 +649,6 @@ class FemasTdApi(TdApi):
             "BrokerID": self.brokerid,
             "AppID": self.appid
         }
-
-        if self.product_info:
-            req["UserProductInfo"] = self.product_info
 
         self.reqid += 1
         self.reqUserLogin(req, self.reqid)

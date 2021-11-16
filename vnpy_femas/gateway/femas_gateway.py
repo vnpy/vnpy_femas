@@ -104,9 +104,7 @@ OPTIONTYPE_FEMAS2VT = {
 CHINA_TZ = pytz.timezone("Asia/Shanghai")
 
 
-symbol_exchange_map = {}
-symbol_name_map = {}
-symbol_size_map = {}
+symbol_contract_map: Dict[str, ContractData] = {}
 
 
 class FemasGateway(BaseGateway):
@@ -114,7 +112,7 @@ class FemasGateway(BaseGateway):
     vn.py用于连接飞马柜台的接口
     """
 
-    default_settingd: dict = {
+    default_setting: dict = {
         "用户名": "",
         "密码": "",
         "经纪商代码": "",
@@ -122,7 +120,6 @@ class FemasGateway(BaseGateway):
         "行情服务器": "",
         "产品名称": "",
         "授权编码": "",
-        "产品信息": "",
     }
 
     exchanges: List[EXCHANGE_FEMAS2VT.values] = list(EXCHANGE_FEMAS2VT.values())
@@ -149,9 +146,9 @@ class FemasGateway(BaseGateway):
 
         appid: str = setting["产品名称"]
         auth_code: str = setting["授权编码"]
-        product_info: str = setting["产品信息"]
+        
 
-        self.td_api.connect(td_address, userid, password, brokerid, auth_code, appid, product_info)
+        self.td_api.connect(td_address, userid, password, brokerid, auth_code, appid)
         self.md_api.connect(md_address, userid, password, brokerid)
 
         self.init_query()
@@ -264,8 +261,8 @@ class FemasMdApi(MdApi):
     def onRtnDepthMarketData(self, data: dict) -> None:
         """行情数据推送"""
         symbol: str = data["InstrumentID"]
-        exchange: Exchange = symbol_exchange_map.get(symbol, "")
-        if not exchange:
+        contract: ContractData = symbol_contract_map.get(symbol, None)
+        if not contract:
             return
 
         timestamp: str = f"{data['TradingDay']} {data['UpdateTime']}.{int(data['UpdateMillisec'] / 100)}"
@@ -274,9 +271,9 @@ class FemasMdApi(MdApi):
 
         tick: TickData = TickData(
             symbol=symbol,
-            exchange=exchange,
+            exchange=contract.exchange,
             datetime=dt,
-            name=symbol_name_map[symbol],
+            name=contract.name,
             volume=data["Volume"],
             last_price=data["LastPrice"],
             limit_up=data["UpperLimitPrice"],
@@ -360,7 +357,7 @@ class FemasTdApi(TdApi):
         self.brokerid: int = 0
         self.auth_code: str = ""
         self.appid: str = ""
-        self.product_info: str = ""
+        
 
         self.positions: dict = {}
         self.tradeids: List[str] = set()
@@ -419,11 +416,11 @@ class FemasTdApi(TdApi):
 
         orderid:str = data["UserOrderLocalID"]
         symbol: str = data["InstrumentID"]
-        exchange: Exchange = symbol_exchange_map[symbol]
+        contract: ContractData = symbol_contract_map[symbol]
 
         order: OrderData = OrderData(
             symbol=symbol,
-            exchange=exchange,
+            exchange=contract.exchange,
             orderid=orderid,
             direction=DIRECTION_FEMAS2VT[data["Direction"]],
             offset=OFFSET_FEMAS2VT[data["OffsetFlag"]],
@@ -461,32 +458,37 @@ class FemasTdApi(TdApi):
         if not data:
             return
 
-        # 获取之前缓存的持仓数据缓存
-        key: str = f"{data['InstrumentID'], data['Direction']}"
-        position: PositionData = self.positions.get(key, None)
-        if not position:
-            position = PositionData(
-                symbol=data["InstrumentID"],
-                exchange=symbol_exchange_map[data["InstrumentID"]],
-                direction=DIRECTION_FEMAS2VT[data["Direction"]],
-                gateway_name=self.gateway_name,
-            )
-            self.positions[key] = position
+        # 必须收到了合约信息后才能处理
+        symbol: str = data["InstrumentID"]
+        contract: ContractData = symbol_contract_map.get(symbol, None)
 
-        position.yd_volume = data["YdPosition"]
-        # 计算之前已有仓位的持仓总成本
-        cost: float = position.price * position.volume
+        if contract:
+            # 获取之前缓存的持仓数据缓存
+            key: str = f"{data['InstrumentID'], data['Direction']}"
+            position: PositionData = self.positions.get(key, None)
+            if not position:
+                position = PositionData(
+                    symbol=data["InstrumentID"],
+                    exchange=contract.exchange,
+                    direction=DIRECTION_FEMAS2VT[data["Direction"]],
+                    gateway_name=self.gateway_name,
+                )
+                self.positions[key] = position
 
-        # 累加更新持仓数量
-        position.volume += data["Position"]
+            position.yd_volume = data["YdPosition"]
+            # 计算之前已有仓位的持仓总成本
+            cost: float = position.price * position.volume
 
-        # 计算更新后的持仓总成本和均价
-        if position.volume:
-            cost += data["PositionCost"]
-            position.price = cost / position.volume
+            # 累加更新持仓数量
+            position.volume += data["Position"]
 
-        # 更新仓位冻结数量
-        position.frozen += data["FrozenPosition"]
+            # 计算更新后的持仓总成本和均价
+            if position.volume:
+                cost += data["PositionCost"]
+                position.price = cost / position.volume
+
+            # 更新仓位冻结数量
+            position.frozen += data["FrozenPosition"]
 
         if last:
             for position in self.positions.values():
@@ -541,9 +543,7 @@ class FemasTdApi(TdApi):
 
         self.gateway.on_contract(contract)
 
-        symbol_exchange_map[contract.symbol] = contract.exchange
-        symbol_name_map[contract.symbol] = contract.name
-        symbol_size_map[contract.symbol] = contract.size
+        symbol_contract_map[contract.symbol] = contract
 
         if last:
             self.gateway.write_log("合约信息查询成功")
@@ -606,7 +606,7 @@ class FemasTdApi(TdApi):
         brokerid: int,
         auth_code: str,
         appid: str,
-        product_info: str
+  
     ) -> None:
         """连接服务器"""
         self.userid = userid
@@ -615,7 +615,7 @@ class FemasTdApi(TdApi):
         self.address = address
         self.auth_code = auth_code
         self.appid = appid
-        self.product_info = product_info
+        
 
         if not self.connect_status:
             path = get_folder_path(self.gateway_name.lower())
@@ -640,8 +640,7 @@ class FemasTdApi(TdApi):
             "EncryptType": "1",
         }
 
-        if self.product_info:
-            req["UserProductInfo"] = self.product_info
+        
 
         self.reqid += 1
         self.reqDSUserCertification(req, self.reqid)
@@ -658,8 +657,7 @@ class FemasTdApi(TdApi):
             "AppID": self.appid
         }
 
-        if self.product_info:
-            req["UserProductInfo"] = self.product_info
+        
 
         self.reqid += 1
         self.reqUserLogin(req, self.reqid)
@@ -756,7 +754,7 @@ class FemasTdApi(TdApi):
 
     def query_position(self) -> None:
         """查询持仓"""
-        if not symbol_exchange_map:
+        if not symbol_contract_map:
             return
 
         req: dict = {

@@ -7,7 +7,7 @@ vn.py框架的飞马柜台交易接口
 
 <p align="center">
     <img src ="https://img.shields.io/badge/version-1.0.0-blueviolet.svg"/>
-    <img src ="https://img.shields.io/badge/platform-windows|linux|macos-yellow.svg"/>
+    <img src ="https://img.shields.io/badge/platform-windows-yellow.svg"/>
     <img src ="https://img.shields.io/badge/python-3.7-blue.svg" />
     <img src ="https://img.shields.io/github/license/vnpy/vnpy.svg?color=orange"/>
 </p>

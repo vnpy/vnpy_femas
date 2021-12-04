@@ -1,5 +1,4 @@
-# vnpy_femas
-vn.py框架的飞马柜台交易接口
+# vn.py框架的飞马柜台交易接口
 
 <p align="center">
   <img src ="https://vnpy.oss-cn-shanghai.aliyuncs.com/vnpy-logo.png"/>

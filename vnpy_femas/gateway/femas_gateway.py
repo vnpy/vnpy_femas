@@ -112,6 +112,8 @@ class FemasGateway(BaseGateway):
     vn.py用于连接飞马柜台的接口
     """
 
+    default_name: str = "FEMAS"
+
     default_setting: dict = {
         "用户名": "",
         "密码": "",
@@ -122,11 +124,11 @@ class FemasGateway(BaseGateway):
         "授权编码": "",
     }
 
-    exchanges: List[EXCHANGE_FEMAS2VT.values] = list(EXCHANGE_FEMAS2VT.values())
+    exchanges: List[str] = list(EXCHANGE_FEMAS2VT.values())
 
-    def __init__(self, event_engine: EventEngine) -> None:
+    def __init__(self, event_engine: EventEngine, gateway_name: str) -> None:
         """构造函数"""
-        super(FemasGateway, self).__init__(event_engine, "FEMAS")
+        super().__init__(event_engine, gateway_name)
 
         self.td_api: FemasTdApi = FemasTdApi(self)
         self.md_api: FemasTdApi = FemasMdApi(self)

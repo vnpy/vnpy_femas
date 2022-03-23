@@ -1,9 +1,8 @@
-""""""
-
-from typing import Callable, Dict, List
+from typing import Dict, List
 import pytz
 from datetime import datetime
 from time import sleep
+from pathlib import Path
 
 from ..api import (
     MdApi,
@@ -59,7 +58,7 @@ from vnpy.trader.object import (
 from vnpy.trader.utility import get_folder_path
 
 
-STATUS_FEMAS2VT = {
+STATUS_FEMAS2VT: Dict[str, Status] = {
     USTP_FTDC_CAS_Submitted: Status.SUBMITTING,
     USTP_FTDC_CAS_Accepted: Status.SUBMITTING,
     USTP_FTDC_CAS_Rejected: Status.REJECTED,
@@ -69,26 +68,26 @@ STATUS_FEMAS2VT = {
     USTP_FTDC_OS_Canceled: Status.CANCELLED,
 }
 
-DIRECTION_VT2FEMAS = {
+DIRECTION_VT2FEMAS: Dict[Direction, str] = {
     Direction.LONG: USTP_FTDC_D_Buy,
     Direction.SHORT: USTP_FTDC_D_Sell,
 }
-DIRECTION_FEMAS2VT = {v: k for k, v in DIRECTION_VT2FEMAS.items()}
+DIRECTION_FEMAS2VT: Dict[str, Direction] = {v: k for k, v in DIRECTION_VT2FEMAS.items()}
 
-ORDERTYPE_VT2FEMAS = {
+ORDERTYPE_VT2FEMAS: Dict[OrderType, str] = {
     OrderType.LIMIT: USTP_FTDC_OPT_LimitPrice,
     OrderType.MARKET: USTP_FTDC_OPT_AnyPrice,
 }
 
-OFFSET_VT2FEMAS = {
+OFFSET_VT2FEMAS: Dict[Offset, str] = {
     Offset.OPEN: USTP_FTDC_OF_Open,
     Offset.CLOSE: USTP_FTDC_OF_Close,
     Offset.CLOSETODAY: USTP_FTDC_OF_CloseYesterday,
     Offset.CLOSEYESTERDAY: USTP_FTDC_OF_CloseToday,
 }
-OFFSET_FEMAS2VT = {v: k for k, v in OFFSET_VT2FEMAS.items()}
+OFFSET_FEMAS2VT: Dict[str, Offset] = {v: k for k, v in OFFSET_VT2FEMAS.items()}
 
-EXCHANGE_FEMAS2VT = {
+EXCHANGE_FEMAS2VT: Dict[str, Exchange] = {
     "CFFEX": Exchange.CFFEX,
     "SHFE": Exchange.SHFE,
     "CZCE": Exchange.CZCE,
@@ -96,7 +95,7 @@ EXCHANGE_FEMAS2VT = {
     "INE": Exchange.INE,
 }
 
-OPTIONTYPE_FEMAS2VT = {
+OPTIONTYPE_FEMAS2VT: Dict[str, OptionType] = {
     USTP_FTDC_OT_CallOptions: OptionType.CALL,
     USTP_FTDC_OT_PutOptions: OptionType.PUT,
 }
@@ -130,8 +129,8 @@ class FemasGateway(BaseGateway):
         """构造函数"""
         super().__init__(event_engine, gateway_name)
 
-        self.td_api: FemasTdApi = FemasTdApi(self)
-        self.md_api: FemasTdApi = FemasMdApi(self)
+        self.td_api: "FemasTdApi" = FemasTdApi(self)
+        self.md_api: "FemasTdApi" = FemasMdApi(self)
 
     def connect(self, setting: dict) -> None:
         """连接交易接口"""
@@ -148,7 +147,6 @@ class FemasGateway(BaseGateway):
 
         appid: str = setting["产品名称"]
         auth_code: str = setting["授权编码"]
-        
 
         self.td_api.connect(td_address, userid, password, brokerid, auth_code, appid)
         self.md_api.connect(md_address, userid, password, brokerid)
@@ -194,14 +192,14 @@ class FemasGateway(BaseGateway):
             return
         self.count = 0
 
-        func: Callable = self.query_functions.pop(0)
+        func = self.query_functions.pop(0)
         func()
         self.query_functions.append(func)
 
     def init_query(self) -> None:
         """初始化查询任务"""
         self.count: int = 0
-        self.query_functions: List[Callable] = [self.query_account, self.query_position]
+        self.query_functions: list = [self.query_account, self.query_position]
         self.event_engine.register(EVENT_TIMER, self.process_timer_event)
 
 
@@ -210,7 +208,7 @@ class FemasMdApi(MdApi):
 
     def __init__(self, gateway: FemasGateway) -> None:
         """构造函数"""
-        super(FemasMdApi, self).__init__()
+        super().__init__()
 
         self.gateway: FemasGateway = gateway
         self.gateway_name: str = gateway.gateway_name
@@ -222,7 +220,7 @@ class FemasMdApi(MdApi):
         self.auth_staus: bool = False
         self.login_failed: bool = False
 
-        self.subscribed: List[str] = set()
+        self.subscribed: set = set()
 
         self.userid: str = ""
         self.password: str = ""
@@ -269,7 +267,7 @@ class FemasMdApi(MdApi):
 
         timestamp: str = f"{data['TradingDay']} {data['UpdateTime']}.{int(data['UpdateMillisec'] / 100)}"
         dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
-        dt = CHINA_TZ.localize(dt)
+        dt: datetime = CHINA_TZ.localize(dt)
 
         tick: TickData = TickData(
             symbol=symbol,
@@ -300,7 +298,7 @@ class FemasMdApi(MdApi):
 
         # 禁止重复发起连接，会导致异常崩溃
         if not self.connect_status:
-            path = get_folder_path(self.gateway_name.lower())
+            path: Path = get_folder_path(self.gateway_name.lower())
             self.createFtdcMdApi((str(path) + "\\Md").encode("GBK"))
 
             self.subscribeMarketDataTopic(100, 2)
@@ -340,7 +338,7 @@ class FemasTdApi(TdApi):
 
     def __init__(self, gateway: FemasGateway):
         """构造函数"""
-        super(FemasTdApi, self).__init__()
+        super().__init__()
 
         self.gateway: FemasGateway = gateway
         self.gateway_name: str = gateway.gateway_name
@@ -360,9 +358,8 @@ class FemasTdApi(TdApi):
         self.auth_code: str = ""
         self.appid: str = ""
         
-
-        self.positions: dict = {}
-        self.tradeids: List[str] = set()
+        self.positions: Dict[str, PositionData] = {}
+        self.tradeids: set = set()
 
     def onFrontConnected(self) -> None:
         """服务器连接成功回报"""
@@ -442,10 +439,6 @@ class FemasTdApi(TdApi):
 
         self.gateway.write_error("交易撤单失败", error)
 
-    def onRspQueryMaxOrderVolume(self, data: dict, error: dict, reqid: int, last: bool) -> None:
-        """"""
-        pass
-
     def onRspSettlementInfoConfirm(
         self, data: dict, error: dict, reqid: int, last: bool
     ) -> None:
@@ -469,7 +462,7 @@ class FemasTdApi(TdApi):
             key: str = f"{data['InstrumentID'], data['Direction']}"
             position: PositionData = self.positions.get(key, None)
             if not position:
-                position = PositionData(
+                position: PositionData = PositionData(
                     symbol=data["InstrumentID"],
                     exchange=contract.exchange,
                     direction=DIRECTION_FEMAS2VT[data["Direction"]],
@@ -554,7 +547,7 @@ class FemasTdApi(TdApi):
         """委托更新推送"""
         timestamp: str = f"{data['InsertDate']} {data['InsertTime']}"
         dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
-        dt = CHINA_TZ.localize(dt)
+        dt: datetime = CHINA_TZ.localize(dt)
 
         order: OrderData = OrderData(
             symbol=data["InstrumentID"],
@@ -583,7 +576,7 @@ class FemasTdApi(TdApi):
 
         timestamp: str = f"{data['TradeDate']} {data['TradeTime']}"
         dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
-        dt = CHINA_TZ.localize(dt)
+        dt: datetime = CHINA_TZ.localize(dt)
 
         trade: OrderData = TradeData(
             symbol=data["InstrumentID"],
@@ -620,7 +613,7 @@ class FemasTdApi(TdApi):
         
 
         if not self.connect_status:
-            path = get_folder_path(self.gateway_name.lower())
+            path: Path = get_folder_path(self.gateway_name.lower())
             self.createFtdcTraderApi(str(path) + "\\Td")
 
             self.subscribePrivateTopic(0)
@@ -642,8 +635,6 @@ class FemasTdApi(TdApi):
             "EncryptType": "1",
         }
 
-        
-
         self.reqid += 1
         self.reqDSUserCertification(req, self.reqid)
 
@@ -659,8 +650,6 @@ class FemasTdApi(TdApi):
             "AppID": self.appid
         }
 
-        
-
         self.reqid += 1
         self.reqUserLogin(req, self.reqid)
 
@@ -668,7 +657,7 @@ class FemasTdApi(TdApi):
         """委托查询可用投资者"""
         self.reqid += 1
 
-        req = {
+        req: dict = {
             "BrokerID": self.brokerid,
             "UserID": self.userid,
         }

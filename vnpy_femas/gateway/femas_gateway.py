@@ -108,7 +108,7 @@ symbol_contract_map: Dict[str, ContractData] = {}
 
 class FemasGateway(BaseGateway):
     """
-    VeighNa用于连接飞马柜台的接口
+    VeighNa用于连接飞马柜台的接口。
     """
 
     default_name: str = "FEMAS"

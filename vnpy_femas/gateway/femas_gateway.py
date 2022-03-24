@@ -4,6 +4,31 @@ from datetime import datetime
 from time import sleep
 from pathlib import Path
 
+from vnpy.event import EventEngine
+from vnpy.trader.constant import (
+    Direction,
+    Exchange,
+    Offset,
+    OptionType,
+    OrderType,
+    Status,
+    Product
+)
+from vnpy.trader.gateway import BaseGateway
+from vnpy.trader.object import (
+    AccountData,
+    CancelRequest,
+    ContractData,
+    OrderData,
+    OrderRequest,
+    PositionData,
+    SubscribeRequest,
+    TickData,
+    TradeData,
+)
+from vnpy.trader.utility import get_folder_path
+from vnpy.trader.event import EVENT_TIMER
+
 from ..api import (
     MdApi,
     TdApi,
@@ -32,32 +57,9 @@ from ..api import (
     USTP_FTDC_VC_AV,
     USTP_FTDC_VC_CV
 )
-from vnpy.event.engine import EventEngine
-from vnpy.trader.constant import (
-    Direction,
-    Exchange,
-    Offset,
-    OptionType,
-    OrderType,
-    Status,
-    Product
-)
-from vnpy.trader.event import EVENT_TIMER
-from vnpy.trader.gateway import BaseGateway
-from vnpy.trader.object import (
-    AccountData,
-    CancelRequest,
-    ContractData,
-    OrderData,
-    OrderRequest,
-    PositionData,
-    SubscribeRequest,
-    TickData,
-    TradeData,
-)
-from vnpy.trader.utility import get_folder_path
 
 
+# 委托状态映射
 STATUS_FEMAS2VT: Dict[str, Status] = {
     USTP_FTDC_CAS_Submitted: Status.SUBMITTING,
     USTP_FTDC_CAS_Accepted: Status.SUBMITTING,
@@ -68,17 +70,20 @@ STATUS_FEMAS2VT: Dict[str, Status] = {
     USTP_FTDC_OS_Canceled: Status.CANCELLED,
 }
 
+# 多空方向映射
 DIRECTION_VT2FEMAS: Dict[Direction, str] = {
     Direction.LONG: USTP_FTDC_D_Buy,
     Direction.SHORT: USTP_FTDC_D_Sell,
 }
 DIRECTION_FEMAS2VT: Dict[str, Direction] = {v: k for k, v in DIRECTION_VT2FEMAS.items()}
 
+# 委托类型映射
 ORDERTYPE_VT2FEMAS: Dict[OrderType, str] = {
     OrderType.LIMIT: USTP_FTDC_OPT_LimitPrice,
     OrderType.MARKET: USTP_FTDC_OPT_AnyPrice,
 }
 
+# 开平方向映射
 OFFSET_VT2FEMAS: Dict[Offset, str] = {
     Offset.OPEN: USTP_FTDC_OF_Open,
     Offset.CLOSE: USTP_FTDC_OF_Close,
@@ -87,6 +92,7 @@ OFFSET_VT2FEMAS: Dict[Offset, str] = {
 }
 OFFSET_FEMAS2VT: Dict[str, Offset] = {v: k for k, v in OFFSET_VT2FEMAS.items()}
 
+# 交易所映射
 EXCHANGE_FEMAS2VT: Dict[str, Exchange] = {
     "CFFEX": Exchange.CFFEX,
     "SHFE": Exchange.SHFE,
@@ -95,14 +101,16 @@ EXCHANGE_FEMAS2VT: Dict[str, Exchange] = {
     "INE": Exchange.INE,
 }
 
+# 期权类型映射
 OPTIONTYPE_FEMAS2VT: Dict[str, OptionType] = {
     USTP_FTDC_OT_CallOptions: OptionType.CALL,
     USTP_FTDC_OT_PutOptions: OptionType.PUT,
 }
 
-CHINA_TZ = pytz.timezone("Asia/Shanghai")
+# 其他常量
+CHINA_TZ = pytz.timezone("Asia/Shanghai")       # 中国时区
 
-
+# 合约数据全局缓存字典
 symbol_contract_map: Dict[str, ContractData] = {}
 
 

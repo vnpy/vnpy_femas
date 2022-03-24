@@ -357,7 +357,7 @@ class FemasTdApi(TdApi):
         self.brokerid: int = 0
         self.auth_code: str = ""
         self.appid: str = ""
-        
+
         self.positions: Dict[str, PositionData] = {}
         self.tradeids: set = set()
 
@@ -413,7 +413,7 @@ class FemasTdApi(TdApi):
         if not error["ErrorID"]:
             return
 
-        orderid:str = data["UserOrderLocalID"]
+        orderid: str = data["UserOrderLocalID"]
         symbol: str = data["InstrumentID"]
         contract: ContractData = symbol_contract_map[symbol]
 
@@ -504,7 +504,7 @@ class FemasTdApi(TdApi):
 
     def onRspQryInstrument(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """合约查询回报"""
-        # 飞马柜台没有提供ProductClass数据，因此需要使用以下逻辑确定产品类型。  
+        # 飞马柜台没有提供ProductClass数据，因此需要使用以下逻辑确定产品类型。
         option_type: OptionType = OPTIONTYPE_FEMAS2VT.get(data["OptionsType"], None)
         if option_type:
             product = Product.OPTION
@@ -601,7 +601,6 @@ class FemasTdApi(TdApi):
         brokerid: int,
         auth_code: str,
         appid: str,
-  
     ) -> None:
         """连接服务器"""
         self.userid = userid
@@ -610,7 +609,6 @@ class FemasTdApi(TdApi):
         self.address = address
         self.auth_code = auth_code
         self.appid = appid
-        
 
         if not self.connect_status:
             path: Path = get_folder_path(self.gateway_name.lower())

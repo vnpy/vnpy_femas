@@ -470,7 +470,7 @@ class FemasTdApi(TdApi):
             key: str = f"{data['InstrumentID'], data['Direction']}"
             position: PositionData = self.positions.get(key, None)
             if not position:
-                position: PositionData = PositionData(
+                position = PositionData(
                     symbol=data["InstrumentID"],
                     exchange=contract.exchange,
                     direction=DIRECTION_FEMAS2VT[data["Direction"]],

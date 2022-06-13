@@ -10,6 +10,10 @@ def get_ext_modules() -> list:
     Windows需要编译封装接口
     暂不支持Linux和Mac
     """
+
+    if platform.system() != "Windows":
+        return []
+
     extra_compile_flags = ["-O2", "-MT"]
     extra_link_args = []
     runtime_library_dirs = []

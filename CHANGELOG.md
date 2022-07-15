@@ -1,7 +1,7 @@
 # 1.0.2版本
 
-1. 调整安装脚本setup.py，过滤非Windows系统的编译安装
-2. 使用zoneinfo替换pytz库
+1. 使用zoneinfo替换pytz库
+2. 调整安装脚本setup.cfg，添加Python版本限制
 
 # 1.0.1版本
 

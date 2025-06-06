@@ -1,4 +1,3 @@
-from typing import Dict, List
 from datetime import datetime
 from time import sleep
 from pathlib import Path
@@ -59,7 +58,7 @@ from ..api import (
 
 
 # 委托状态映射
-STATUS_FEMAS2VT: Dict[str, Status] = {
+STATUS_FEMAS2VT: dict[str, Status] = {
     USTP_FTDC_CAS_Submitted: Status.SUBMITTING,
     USTP_FTDC_CAS_Accepted: Status.SUBMITTING,
     USTP_FTDC_CAS_Rejected: Status.REJECTED,
@@ -70,29 +69,29 @@ STATUS_FEMAS2VT: Dict[str, Status] = {
 }
 
 # 多空方向映射
-DIRECTION_VT2FEMAS: Dict[Direction, str] = {
+DIRECTION_VT2FEMAS: dict[Direction, str] = {
     Direction.LONG: USTP_FTDC_D_Buy,
     Direction.SHORT: USTP_FTDC_D_Sell,
 }
-DIRECTION_FEMAS2VT: Dict[str, Direction] = {v: k for k, v in DIRECTION_VT2FEMAS.items()}
+DIRECTION_FEMAS2VT: dict[str, Direction] = {v: k for k, v in DIRECTION_VT2FEMAS.items()}
 
 # 委托类型映射
-ORDERTYPE_VT2FEMAS: Dict[OrderType, str] = {
+ORDERTYPE_VT2FEMAS: dict[OrderType, str] = {
     OrderType.LIMIT: USTP_FTDC_OPT_LimitPrice,
     OrderType.MARKET: USTP_FTDC_OPT_AnyPrice,
 }
 
 # 开平方向映射
-OFFSET_VT2FEMAS: Dict[Offset, str] = {
+OFFSET_VT2FEMAS: dict[Offset, str] = {
     Offset.OPEN: USTP_FTDC_OF_Open,
     Offset.CLOSE: USTP_FTDC_OF_Close,
     Offset.CLOSETODAY: USTP_FTDC_OF_CloseYesterday,
     Offset.CLOSEYESTERDAY: USTP_FTDC_OF_CloseToday,
 }
-OFFSET_FEMAS2VT: Dict[str, Offset] = {v: k for k, v in OFFSET_VT2FEMAS.items()}
+OFFSET_FEMAS2VT: dict[str, Offset] = {v: k for k, v in OFFSET_VT2FEMAS.items()}
 
 # 交易所映射
-EXCHANGE_FEMAS2VT: Dict[str, Exchange] = {
+EXCHANGE_FEMAS2VT: dict[str, Exchange] = {
     "CFFEX": Exchange.CFFEX,
     "SHFE": Exchange.SHFE,
     "CZCE": Exchange.CZCE,
@@ -101,7 +100,7 @@ EXCHANGE_FEMAS2VT: Dict[str, Exchange] = {
 }
 
 # 期权类型映射
-OPTIONTYPE_FEMAS2VT: Dict[str, OptionType] = {
+OPTIONTYPE_FEMAS2VT: dict[str, OptionType] = {
     USTP_FTDC_OT_CallOptions: OptionType.CALL,
     USTP_FTDC_OT_PutOptions: OptionType.PUT,
 }
@@ -110,7 +109,7 @@ OPTIONTYPE_FEMAS2VT: Dict[str, OptionType] = {
 CHINA_TZ = ZoneInfo("Asia/Shanghai")       # 中国时区
 
 # 合约数据全局缓存字典
-symbol_contract_map: Dict[str, ContractData] = {}
+symbol_contract_map: dict[str, ContractData] = {}
 
 
 class FemasGateway(BaseGateway):
@@ -130,14 +129,14 @@ class FemasGateway(BaseGateway):
         "授权编码": "",
     }
 
-    exchanges: List[str] = list(EXCHANGE_FEMAS2VT.values())
+    exchanges: list[str] = list(EXCHANGE_FEMAS2VT.values())
 
     def __init__(self, event_engine: EventEngine, gateway_name: str) -> None:
         """构造函数"""
         super().__init__(event_engine, gateway_name)
 
-        self.td_api: "FemasTdApi" = FemasTdApi(self)
-        self.md_api: "FemasTdApi" = FemasMdApi(self)
+        self.td_api: FemasTdApi = FemasTdApi(self)
+        self.md_api: FemasTdApi = FemasMdApi(self)
 
     def connect(self, setting: dict) -> None:
         """连接交易接口"""
@@ -365,7 +364,7 @@ class FemasTdApi(TdApi):
         self.auth_code: str = ""
         self.appid: str = ""
 
-        self.positions: Dict[str, PositionData] = {}
+        self.positions: dict[str, PositionData] = {}
         self.tradeids: set = set()
 
     def onFrontConnected(self) -> None:

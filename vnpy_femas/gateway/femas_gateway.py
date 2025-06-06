@@ -136,7 +136,7 @@ class FemasGateway(BaseGateway):
         super().__init__(event_engine, gateway_name)
 
         self.td_api: FemasTdApi = FemasTdApi(self)
-        self.md_api: FemasTdApi = FemasMdApi(self)
+        self.md_api: FemasMdApi = FemasMdApi(self)
 
         self.count: int = 0
 

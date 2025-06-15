@@ -23,6 +23,10 @@
 import importlib_metadata
 from .gateway import FemasGateway
 
+
+__all__ = ["FemasGateway"]
+
+
 try:
     __version__ = importlib_metadata.version("vnpy_femas")
 except importlib_metadata.PackageNotFoundError:

@@ -20,6 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+"""VeighNa 飞马柜台交易接口。"""
+
 import importlib_metadata
 from .gateway import FemasGateway
 

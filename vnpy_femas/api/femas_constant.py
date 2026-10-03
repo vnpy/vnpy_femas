@@ -1,3 +1,5 @@
+"""飞马柜台接口常量。"""
+
 USTP_FTDC_DSID_PC = '1'
 USTP_FTDC_DSID_App = '2'
 USTP_FTDC_DSID_ProxyNoOperator = '3'

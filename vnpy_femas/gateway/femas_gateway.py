@@ -1,3 +1,5 @@
+"""实现飞马柜台交易接口。"""
+
 from datetime import datetime
 from time import sleep
 from pathlib import Path
@@ -212,7 +214,7 @@ class FemasGateway(BaseGateway):
 
 
 class FemasMdApi(MdApi):
-    """"""
+    """对接飞马柜台的行情接口。"""
 
     def __init__(self, gateway: FemasGateway) -> None:
         """构造函数"""
@@ -342,7 +344,7 @@ class FemasMdApi(MdApi):
 
 
 class FemasTdApi(TdApi):
-    """"""
+    """对接飞马柜台的交易接口。"""
 
     def __init__(self, gateway: FemasGateway):
         """构造函数"""

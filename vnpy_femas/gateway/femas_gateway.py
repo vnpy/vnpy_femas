@@ -121,7 +121,7 @@ class FemasGateway(BaseGateway):
 
     default_name: str = "FEMAS"
 
-    default_setting: dict = {
+    default_setting: dict[str, str | int | float | bool] = {
         "用户名": "",
         "密码": "",
         "经纪商代码": "",
@@ -131,7 +131,7 @@ class FemasGateway(BaseGateway):
         "授权编码": "",
     }
 
-    exchanges: list[str] = list(EXCHANGE_FEMAS2VT.values())
+    exchanges: list[Exchange] = list(EXCHANGE_FEMAS2VT.values())
 
     def __init__(self, event_engine: EventEngine, gateway_name: str) -> None:
         """构造函数"""
@@ -271,7 +271,7 @@ class FemasMdApi(MdApi):
     def onRtnDepthMarketData(self, data: dict) -> None:
         """行情数据推送"""
         symbol: str = data["InstrumentID"]
-        contract: ContractData = symbol_contract_map.get(symbol, None)
+        contract: ContractData | None = symbol_contract_map.get(symbol, None)
         if not contract:
             return
 
@@ -464,12 +464,12 @@ class FemasTdApi(TdApi):
 
         # 必须收到了合约信息后才能处理
         symbol: str = data["InstrumentID"]
-        contract: ContractData = symbol_contract_map.get(symbol, None)
+        contract: ContractData | None = symbol_contract_map.get(symbol, None)
 
         if contract:
             # 获取之前缓存的持仓数据缓存
             key: str = f"{data['InstrumentID'], data['Direction']}"
-            position: PositionData = self.positions.get(key, None)
+            position: PositionData | None = self.positions.get(key, None)
             if not position:
                 position = PositionData(
                     symbol=data["InstrumentID"],
@@ -514,7 +514,7 @@ class FemasTdApi(TdApi):
     def onRspQryInstrument(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """合约查询回报"""
         # 飞马柜台没有提供ProductClass数据，因此需要使用以下逻辑确定产品类型。
-        option_type: OptionType = OPTIONTYPE_FEMAS2VT.get(data["OptionsType"], None)
+        option_type: OptionType | None = OPTIONTYPE_FEMAS2VT.get(data["OptionsType"], None)
         if option_type:
             product = Product.OPTION
         elif data["InstrumentID_2"]:
@@ -568,7 +568,7 @@ class FemasTdApi(TdApi):
             volume=data["Volume"],
             traded=data["VolumeTraded"],
             status=STATUS_FEMAS2VT[data["OrderStatus"]],
-            datettime=dt,
+            datetime=dt,
             gateway_name=self.gateway_name,
         )
 
@@ -587,7 +587,7 @@ class FemasTdApi(TdApi):
         dt: datetime = datetime.strptime(timestamp, "%Y%m%d %H:%M:%S")
         dt = dt.replace(tzinfo=CHINA_TZ)
 
-        trade: OrderData = TradeData(
+        trade: TradeData = TradeData(
             symbol=data["InstrumentID"],
             exchange=EXCHANGE_FEMAS2VT[data["ExchangeID"]],
             orderid=data["UserOrderLocalID"],

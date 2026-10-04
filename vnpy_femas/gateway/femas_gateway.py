@@ -1,5 +1,6 @@
 """实现飞马柜台交易接口。"""
 
+from collections.abc import Callable
 from datetime import datetime
 from time import sleep
 from pathlib import Path
@@ -108,7 +109,7 @@ OPTIONTYPE_FEMAS2VT: dict[str, OptionType] = {
 }
 
 # 其他常量
-CHINA_TZ = ZoneInfo("Asia/Shanghai")       # 中国时区
+CHINA_TZ: ZoneInfo = ZoneInfo("Asia/Shanghai")       # 中国时区
 
 # 合约数据全局缓存字典
 symbol_contract_map: dict[str, ContractData] = {}
@@ -202,7 +203,7 @@ class FemasGateway(BaseGateway):
             return
         self.count = 0
 
-        func = self.query_functions.pop(0)
+        func: Callable[[], None] = self.query_functions.pop(0)
         func()
         self.query_functions.append(func)
 
@@ -252,6 +253,7 @@ class FemasMdApi(MdApi):
             self.login_status = True
             self.gateway.write_log("行情服务器登录成功")
 
+            symbol: str
             for symbol in self.subscribed:
                 self.subMarketData(symbol)
         else:
@@ -346,7 +348,7 @@ class FemasMdApi(MdApi):
 class FemasTdApi(TdApi):
     """对接飞马柜台的交易接口。"""
 
-    def __init__(self, gateway: FemasGateway):
+    def __init__(self, gateway: FemasGateway) -> None:
         """构造函数"""
         super().__init__()
 
@@ -387,7 +389,7 @@ class FemasTdApi(TdApi):
     def onRspDSUserCertification(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """用户授权验证回报"""
         if not error["ErrorID"]:
-            self.auth_staus = True
+            self.auth_staus: bool = True
             self.gateway.write_log("交易服务器授权验证成功")
             self.login()
         else:
@@ -516,7 +518,7 @@ class FemasTdApi(TdApi):
         # 飞马柜台没有提供ProductClass数据，因此需要使用以下逻辑确定产品类型。
         option_type: OptionType | None = OPTIONTYPE_FEMAS2VT.get(data["OptionsType"], None)
         if option_type:
-            product = Product.OPTION
+            product: Product = Product.OPTION
         elif data["InstrumentID_2"]:
             product = Product.SPREAD
         else:
@@ -615,7 +617,7 @@ class FemasTdApi(TdApi):
         self.userid = userid
         self.password = password
         self.brokerid = brokerid
-        self.address = address
+        self.address: str = address
         self.auth_code = auth_code
         self.appid = appid
 

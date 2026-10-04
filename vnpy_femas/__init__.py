@@ -22,7 +22,8 @@
 
 """VeighNa 飞马柜台交易接口。"""
 
-import importlib_metadata
+from importlib import metadata
+
 from .gateway import FemasGateway
 
 
@@ -30,6 +31,6 @@ __all__ = ["FemasGateway"]
 
 
 try:
-    __version__ = importlib_metadata.version("vnpy_femas")
-except importlib_metadata.PackageNotFoundError:
+    __version__ = metadata.version("vnpy_femas")
+except metadata.PackageNotFoundError:
     __version__ = "dev"

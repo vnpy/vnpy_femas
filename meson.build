@@ -1,7 +1,7 @@
 project(
   'vnpy_femas',
   'cpp',
-  version: '1.0.3',
+  version: '1.0.4',
   license: 'MIT',
   meson_version: '>=1.7.0',
   default_options: [

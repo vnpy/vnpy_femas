@@ -1,6 +1,6 @@
 [project]
 name = "vnpy_femas"
-version = "1.0.3"
+version = "1.0.4"
 description = "FEMAS gateway for vn.py quant trading framework."
 readme = "README.md"
 license = {text = "MIT"}
